@@ -1,5 +1,30 @@
-const BASE_URL =
-  "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies";
+// const BASE_URL =
+//   "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies";
+
+const API_BASE = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies";
+const API_FALLBACK = "https://latest.currency-api.pages.dev/v1/currencies"; 
+
+async function fetchRate(from, to) {
+  const urls = [
+    `${API_BASE}/${from}.json`,
+    `${API_FALLBACK}/${from}.json`, 
+   
+  ];
+
+  for (const url of urls) {
+    try {
+      console.log("Fetching:", url); 
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue; 
+      const data = await res.json();   
+      const rate = data?.[from]?.[to];
+      if (typeof rate === "number") return rate;
+    } catch {
+      
+    }
+  }
+  throw new Error(`Rate not found for ${from.toUpperCase()} → ${to.toUpperCase()}`);
+}
 
 const dropdowns = document.querySelectorAll(".dropdown select");
 const btn = document.querySelector("form button");
@@ -26,19 +51,23 @@ for (let select of dropdowns) {
 }
 
 const updateExchangeRate = async () => {
-  let amount = document.querySelector(".amount input");
-  let amtVal = amount.value;
-  if (amtVal === "" || amtVal < 1) {
-    amtVal = 1;
-    amount.value = "1";
-  }
-  const URL = `${BASE_URL}/${fromCurr.value.toLowerCase()}/${toCurr.value.toLowerCase()}.json`;
-  let response = await fetch(URL);
-  let data = await response.json();
-  let rate = data[toCurr.value.toLowerCase()];
+  
+  const amountEl = document.querySelector(".amount input");
+  let amtVal = Number(amountEl.value);
+  if (!amtVal || amtVal < 1) 
+    { amtVal = 1; amountEl.value = "1"; }
 
-  let finalAmount = amtVal * rate;
-  msg.innerText = `${amtVal} ${fromCurr.value} = ${finalAmount} ${toCurr.value}`;
+  const from = fromCurr.value.toLowerCase();
+  const to = toCurr.value.toLowerCase();
+
+  try {
+    const rate = await fetchRate(from, to);
+    const finalAmount = amtVal * rate;
+    msg.textContent = `${amtVal} ${fromCurr.value} = ${finalAmount.toFixed(4)} ${toCurr.value}`;
+  } catch (e) {
+    console.error(e);
+    msg.textContent = "Could not fetch exchange rate. Please try again.";
+  }
 };
 
 const updateFlag = (element) => {
@@ -57,4 +86,3 @@ btn.addEventListener("click", (evt) => {
 window.addEventListener("load", () => {
   updateExchangeRate();
 });
-
